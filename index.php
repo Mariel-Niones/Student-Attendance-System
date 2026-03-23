@@ -3,6 +3,8 @@ session_start();
 include 'db.php';
 
 $action = isset($_GET['action']) ? $_GET['action'] : 'register';
+$action = isset($_GET['action']) ? $_GET['action'] : 'login';
+
 
 // =======================
 // REGISTRATION
@@ -176,6 +178,7 @@ if(isset($_SESSION['success_message'])){
 </form>
 
 <!-- Added link to login page -->
+ <p class="text-center">Already registered? <a href="ins_dashb.php?action=login">Dashboard</a></p>
 <p class="text-center">Already registered? <a href="index.php?action=login">Login here</a></p>
 
 </div>

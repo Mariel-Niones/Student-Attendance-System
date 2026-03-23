@@ -1,0 +1,205 @@
+<?php
+session_start();
+include 'db.php';
+
+$action = isset($_GET['action']) ? $_GET['action'] : 'register';
+$error = '';
+$success = '';
+
+// =======================
+// LOGOUT
+// =======================
+if(isset($_GET['action']) && $_GET['action'] === 'logout'){
+    session_destroy();
+    header("Location: index.php");
+    exit();
+}
+
+// =======================
+// REGISTRATION
+// =======================
+if(isset($_POST['register'])){
+
+    $full_name = trim($_POST['full_name']);
+    $password = $_POST['password']; // plain text password
+    $role = $_POST['role'];
+
+    if($role === 'instructor' || $role === 'admin'){
+
+        $table = ($role === 'instructor') ? "instructors" : "admins";
+
+        $stmt = $conn->prepare("INSERT INTO $table (full_name,password) VALUES (?,?)");
+        $stmt->bind_param("ss",$full_name,$password);
+
+        if($stmt->execute()){
+            $success = "Registration successful! Please login.";
+            $action = "login"; // switch to login view automatically
+        } else{
+            $error = "Registration failed!";
+        }
+
+        $stmt->close();
+    } else {
+        $error = "Invalid role!";
+    }
+}
+
+// =======================
+// LOGIN
+// =======================
+if(isset($_POST['login'])){
+
+    $role = $_POST['role'];
+    $full_name = trim($_POST['full_name']);
+    $password = $_POST['password'];
+
+    $table = ($role === 'instructor') ? "instructors" : "admins";
+
+    $stmt = $conn->prepare("SELECT * FROM $table WHERE full_name=? AND password=?");
+    $stmt->bind_param("ss",$full_name,$password);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if($result->num_rows > 0){
+
+        $user = $result->fetch_assoc();
+
+        $_SESSION['full_name']=$user['full_name'];
+        $_SESSION['role']=$role;
+
+        $success = "Login successful! Welcome, ".$user['full_name'];
+    } else{
+        $error="Invalid username or password!";
+    }
+
+    $stmt->close();
+}
+?>
+
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Student Attendance System</title>
+
+<style>
+
+body{
+    font-family:Arial;
+    margin:0;
+    padding:0;
+    height:100vh;
+    background-image:url('assets/image/jessie.webp');
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+
+    display:flex;
+    justify-content:center;  
+    align-items:center;      
+}
+
+.container{
+    width:400px;
+    background:rgba(255,255,255,0.9);
+    padding:30px;
+    border-radius:10px;
+    box-shadow:0 0 20px rgba(0,0,0,0.3);
+}
+
+.form-box{
+    border:3px solid #007BFF;
+    padding:20px;
+    border-radius:10px;
+}
+
+input,select,button{
+    width:100%;
+    padding:10px;
+    margin:10px 0;
+    border-radius:4px;
+    border:1px solid #ccc;
+    font-size:16px;
+}
+
+button{
+    background:#007BFF;
+    color:white;
+    border:none;
+    cursor:pointer;
+}
+
+button:hover{
+    background:#0056b3;
+}
+
+h2{text-align:center;}
+.error{color:red;text-align:center;}
+.success{color:green;text-align:center;}
+.text-center{ text-align:center; margin-top:10px; }
+.text-center a{ color:#007BFF; text-decoration:none; font-weight:bold; }
+.text-center a:hover{ text-decoration:underline; }
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<?php
+if(!empty($error)) echo "<p class='error'>$error</p>";
+if(!empty($success)) echo "<p class='success'>$success</p>";
+?>
+
+<?php if(isset($_SESSION['role'])): ?>
+
+    <div class="form-box">
+        <h2>Dashboard</h2>
+        <p>Welcome, <?php echo $_SESSION['full_name']; ?> 👋</p>
+        <p>You are logged in as: <?php echo $_SESSION['role']; ?></p>
+        <p class="text-center"><a href="index.php?action=logout">Logout</a></p>
+    </div>
+
+<?php else: ?>
+
+    <?php if($action=="register"){ ?>
+        <div class="form-box">
+            <h2>Register</h2>
+            <form method="POST">
+                <input type="text" name="full_name" placeholder="Full Name" required>
+                <input type="text" name="password" placeholder="Password" required>
+                <select name="role" required>
+                    <option value="">Select Role</option>
+                    <option value="instructor">Instructor</option>
+                    <option value="admin">Administrator</option>
+                </select>
+                <button type="submit" name="register">Register</button>
+            </form>
+            <p class="text-center">Already registered? <a href="index.php?action=login">Login here</a></p>
+        </div>
+    <?php } ?>
+
+    <?php if($action=="login"){ ?>
+        <div class="form-box">
+            <h2>Login</h2>
+            <form method="POST">
+                <select name="role" required>
+                    <option value="">Select Role</option>
+                    <option value="instructor">Instructor</option>
+                    <option value="admin">Administrator</option>
+                </select>
+                <input type="text" name="full_name" placeholder="Full Name" required>
+                <input type="text" name="password" placeholder="Password" required>
+                <button type="submit" name="login">Login</button>
+            </form>
+            <p class="text-center">Don't have an account? <a href="index.php?action=register">Register here</a></p>
+        </div>
+    <?php } ?>
+
+<?php endif; ?>
+
+</div>
+
+</body>
+</html>
