@@ -1,23 +1,37 @@
 <?php
 session_start();
-include 'db.php'; // Make sure this file exists in the same folder
+require(__DIR__ . '/../db.php'); // go up to root for db.php
 
-// =======================
-// SECURITY: Only allow instructors
-// =======================
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'instructor') {
-    header("Location: login.php");
+// Only allow logged-in instructors
+if(!isset($_SESSION['full_name']) || $_SESSION['role'] !== 'instructor'){
+    header("Location: ../index.php?action=login");
     exit();
 }
 
-// =======================
-// LOGOUT
-// =======================
-if (isset($_GET['action']) && $_GET['action'] === 'logout') {
-    session_destroy();
-    header("Location: login.php");
-    exit();
+$instructor_name = $_SESSION['full_name'];
+$error = '';
+$success = '';
+
+// Handle class deletion
+if(isset($_GET['delete_class'])){
+    $class_id = intval($_GET['delete_class']);
+    $stmt = $conn->prepare("DELETE FROM classes WHERE id=? AND instructor_name=?");
+    $stmt->bind_param("is", $class_id, $instructor_name);
+    if($stmt->execute()){
+        $success = "Class deleted successfully!";
+    } else {
+        $error = "Failed to delete class.";
+    }
+    $stmt->close();
 }
+
+// Fetch all classes for this instructor
+$stmt = $conn->prepare("SELECT * FROM classes WHERE instructor_name=? ORDER BY created_at DESC");
+$stmt->bind_param("s", $instructor_name);
+$stmt->execute();
+$result = $stmt->get_result();
+$classes = $result->fetch_all(MYSQLI_ASSOC);
+$stmt->close();
 ?>
 
 <!DOCTYPE html>
@@ -25,93 +39,100 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
 <head>
     <title>Instructor Dashboard</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin:0;
-            padding:0;
-            background:#f0f2f5;
+        body{
+            font-family: Arial;
+            background-color: lightskyblue;
+            padding: 20px;
         }
-        .header {
-            background:#007BFF;
-            color:white;
-            padding:20px;
-            text-align:center;
+        .container{
+            max-width: 900px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
         }
-        .container {
-            width:90%;
-            max-width:900px;
-            margin:30px auto;
+        h2{text-align: center;}
+        table{
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
         }
-        .card {
-            background:white;
-            padding:25px;
-            border-radius:10px;
-            box-shadow:0 5px 15px rgba(0,0,0,0.1);
+        th, td{
+            padding: 10px;
+            border: 1px solid #ccc;
+            text-align: center;
         }
-        h2 { text-align:center; }
-        .welcome {
-            text-align:center;
-            margin-bottom:20px;
-            font-size:18px;
+        a.button{
+            padding: 5px 10px;
+            margin: 2px;
+            background: #007BFF;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            display: inline-block;
         }
-        .grid {
-            display:grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap:15px;
+        a.button:hover{
+            background: #0056b3;
         }
-        .btn {
-            display:block;
-            padding:15px;
-            text-align:center;
-            background:#007BFF;
-            color:white;
-            text-decoration:none;
-            border-radius:8px;
-            font-size:16px;
-            transition:0.3s;
+        .error{color:red; text-align:center;}
+        .success{color:green; text-align:center;}
+        .top-bar{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        .btn:hover { background:#0056b3; }
-        .btn-danger { background:#dc3545; }
-        .btn-danger:hover { background:#a71d2a; }
-        .logout {
-            margin-top:20px;
-            display:block;
-            text-align:center;
-            padding:12px;
-            background:black;
-            color:white;
-            border-radius:8px;
-            text-decoration:none;
-        }
-        .logout:hover { background:#333; }
+        .view-btn{
+    padding: 5px 10px;
+    margin: 2px;
+    background: #28a745; /* light green */
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    display: inline-block;
+}
+
+.view-btn:hover{
+    background: #1e7e34; /* darker green on hover */
+}
     </style>
 </head>
 <body>
-
-<div class="header">
-    <h1>Instructor Dashboard</h1>
-</div>
-
-<div class="container">
-    <div class="card">
-        <div class="welcome">
-            Welcome, <strong><?php echo $_SESSION['full_name']; ?></strong>
+    <div class="container">
+        <div class="top-bar">
+            <h2>Welcome, <?php echo htmlspecialchars($instructor_name); ?></h2>
+            <a class="button" href="create_class.php">Add New Class</a>
         </div>
 
-        <h2>Manage Classes & Students</h2>
+        <?php
+            if(!empty($error)) echo "<p class='error'>$error</p>";
+            if(!empty($success)) echo "<p class='success'>$success</p>";
+        ?>
 
-        <div class="grid">
-            <a href="create_class.php" class="btn">➕ Create Class</a>
-            <a href="register_student.php" class="btn">👨‍🎓 Register Student</a>
-            <a href="edit_class.php" class="btn">✏️ Edit Class Name</a>
-            <a href="edit_student.php" class="btn">✏️ Edit Student</a>
-            <a href="delete_class.php" class="btn btn-danger">🗑 Delete Class</a>
-            <a href="delete_student.php" class="btn btn-danger">🗑 Delete Student</a>
-        </div>
-
-        <a href="instructor_dashboard.php?action=logout" class="logout">Logout</a>
+        <h3>Your Classes</h3>
+        <table>
+            <tr>
+                <th>Class Name</th>
+                <th>Actions</th>
+            </tr>
+            <?php if(count($classes) === 0): ?>
+                <tr><td colspan="2">No classes created yet.</td></tr>
+            <?php else: ?>
+                <?php foreach($classes as $class): ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($class['class_name']); ?></td>
+                        <td>
+                            <a class="button" href="add_student.php?class_id=<?php echo $class['id']; ?>">Add Student</a>
+                            <a class="button" href="edit_student.php?class_id=<?php echo $class['id']; ?>">Edit Student</a>
+                            <a class="button" href="remove_student.php?class_id=<?php echo $class['id']; ?>">Remove Student</a>
+                            <a class="button" href="edit_class.php?class_id=<?php echo $class['id']; ?>">Edit Class</a>
+                            <a class="button" href="?delete_class=<?php echo $class['id']; ?>" onclick="return confirm('Are you sure you want to delete this class?')">Delete Class</a>
+                            <a class="view-btn" href="view_students.php?class_id=<?php echo $class['id']; ?>">View Students</a>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </table>
     </div>
-</div>
-
 </body>
 </html>
