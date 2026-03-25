@@ -1,114 +1,121 @@
 <?php
 session_start();
-require(__DIR__ . '/../db.php');
+include '../db.php';
 
-// Check login
-if(!isset($_SESSION['full_name']) || $_SESSION['role'] !== 'instructor'){
+// امنیت check
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'instructor') {
     header("Location: ../index.php?action=login");
     exit();
 }
 
-if(!isset($_GET['class_id'])){
-    header("Location: instructor_dashboard.php");
-    exit();
+// =======================
+// FETCH STUDENTS WITH CLASS
+// =======================
+$query = "
+    SELECT c.class_name, s.student_name, s.id_number, s.student_code
+    FROM students s
+    JOIN classes c ON s.class_id = c.id
+    ORDER BY c.class_name, s.student_name
+";
+
+$result = $conn->query($query);
+
+// Organize students by class
+$classes = [];
+
+if ($result && $result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
+        $classes[$row['class_name']][] = $row;
+    }
 }
-
-$class_id = intval($_GET['class_id']);
-$instructor_name = $_SESSION['full_name'];
-
-// Verify class ownership
-$stmt = $conn->prepare("SELECT * FROM classes WHERE id=? AND instructor_name=?");
-$stmt->bind_param("is", $class_id, $instructor_name);
-$stmt->execute();
-$result = $stmt->get_result();
-
-if($result->num_rows == 0){
-    header("Location: instructor_dashboard.php");
-    exit();
-}
-
-$class = $result->fetch_assoc();
-$stmt->close();
-
-// Get students
-$stmt = $conn->prepare("SELECT * FROM students WHERE class_id=?");
-$stmt->bind_param("i", $class_id);
-$stmt->execute();
-$students = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-$stmt->close();
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Students List</title>
+    <title>View Students</title>
     <style>
         body{
             font-family: Arial;
-            background:#f2f2f2;
-            padding:20px;
+            background: lightskyblue;
+            padding:30px;
         }
         .container{
-            max-width:800px;
-            margin:auto;
             background:white;
-            padding:20px;
+            padding:30px;
             border-radius:10px;
-            box-shadow:0 0 15px rgba(0,0,0,0.2);
+            box-shadow:0 5px 15px rgba(0,0,0,0.2);
+            max-width:900px;
+            margin:auto;
+        }
+        h2{
+            text-align:center;
+        }
+        h3{
+            margin-top:30px;
+            background:#007BFF;
+            color:white;
+            padding:10px;
+            border-radius:5px;
         }
         table{
             width:100%;
             border-collapse:collapse;
-            margin-top:20px;
+            margin-top:10px;
         }
         th, td{
-            padding:10px;
-            border:1px solid #ccc;
+            border:1px solid #ddd;
+            padding:8px;
             text-align:center;
         }
-        h2{text-align:center;}
-        a.button{
-            padding:8px 12px;
+        th{
             background:#007BFF;
-            color:white;
-            text-decoration:none;
-            border-radius:5px;
+            color:lightskyblue;
         }
-        a.button:hover{
-            background:#0056b3;
+        .back{
+            display:block;
+            margin-top:20px;
+            text-align:center;
+            text-decoration:none;
+            font-weight:bold;
+            color:#007BFF;
         }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <h2>Students per Class</h2>
 
-<h2>Students in "<?php echo htmlspecialchars($class['class_name']); ?>"</h2>
+    <?php if (!empty($classes)): ?>
 
-<table>
-<tr>
-    <th>Name</th>
-    <th>Email</th>
-</tr>
+        <?php foreach ($classes as $class_name => $students): ?>
+            
+            <h3><?php echo htmlspecialchars($class_name); ?></h3>
 
-<?php if(count($students) === 0): ?>
-    <tr><td colspan="2">No students found.</td></tr>
-<?php else: ?>
-    <?php foreach($students as $student): ?>
-        <tr>
-            <td><?php echo htmlspecialchars($student['student_name']); ?></td>
-            <td><?php echo htmlspecialchars($student['student_email']); ?></td>
-        </tr>
-    <?php endforeach; ?>
-<?php endif; ?>
+            <table>
+                <tr>
+                    <th>Full Name</th>
+                    <th>ID Number</th>
+                    <th>Student Code</th>
+                </tr>
 
-</table>
+                <?php foreach ($students as $student): ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($student['student_name']); ?></td>
+                        <td><?php echo htmlspecialchars($student['id_number']); ?></td>
+                        <td><?php echo htmlspecialchars($student['student_code']); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            </table>
 
-<br>
-<p style="text-align:center;">
-    <a class="button" href="instructor_dashboard.php">Back to Dashboard</a>
-</p>
+        <?php endforeach; ?>
 
+    <?php else: ?>
+        <p style="text-align:center;">No students found.</p>
+    <?php endif; ?>
+
+    <a href="instructor_dashboard.php" class="back">← Back to Dashboard</a>
 </div>
 
 </body>

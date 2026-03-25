@@ -43,7 +43,7 @@ if(isset($_POST['login'])){
             if($role === 'instructor'){
                 header("Location: Instructor/instructor_dashboard.php");
             } else {
-                header("Location: admin_dashboard.php");
+                header("Location: Administrator/admin_dashboard.php");
             }
             exit();
         } else {

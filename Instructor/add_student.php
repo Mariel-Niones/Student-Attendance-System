@@ -1,55 +1,65 @@
 <?php
 session_start();
-include '../db.php'; // Adjust path to your db.php
+include '../db.php';
 
-// =======================
-// SECURITY: Only instructors can access
-// =======================
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'instructor') {
+// Only allow logged-in instructors
+if(!isset($_SESSION['full_name']) || $_SESSION['role'] !== 'instructor'){
     header("Location: ../index.php?action=login");
     exit();
 }
 
-$message = '';
-$student_code = '';
+// Get class_id from URL
+if(!isset($_GET['class_id'])){
+    die("Class not specified.");
+}
+$class_id = intval($_GET['class_id']);
 
-// =======================
-// REGISTER STUDENT
-// =======================
-if (isset($_POST['register_student'])) {
+// Fetch class info
+$stmt = $conn->prepare("SELECT class_name FROM classes WHERE id = ?");
+$stmt->bind_param("i", $class_id);
+$stmt->execute();
+$class_result = $stmt->get_result();
+if($class_result->num_rows === 0){
+    die("Class not found.");
+}
+$class = $class_result->fetch_assoc();
+$class_name = $class['class_name'];
+
+// Handle student registration
+$message = '';
+if(isset($_POST['register_student'])){
     $student_name = trim($_POST['student_name']);
     $id_number = trim($_POST['id_number']);
 
-    if (!empty($student_name) && !empty($id_number)) {
+    if(!empty($student_name) && !empty($id_number)){
+        $student_code = strtoupper(substr($student_name,0,3)) . '-' . substr($id_number,-4);
 
-        // Generate student code based on ID Number
-        $student_code = strtoupper(substr($student_name,0,3)) . '-' . substr($id_number, -4);
+        $stmt = $conn->prepare("INSERT INTO students (student_name, id_number, student_code, class_id) VALUES (?, ?, ?, ?)");
+        $stmt->bind_param("sssi", $student_name, $id_number, $student_code, $class_id);
 
-        // Insert into database
-        $stmt = $conn->prepare("INSERT INTO students (student_name, id_number, student_code) VALUES (?, ?, ?)");
-        $stmt->bind_param("sss", $student_name, $id_number, $student_code);
-
-        if ($stmt->execute()) {
-            $message = "Student '$student_name' registered successfully!";
+        if($stmt->execute()){
+            // Redirect to view_students for this class
+            header("Location: view_students.php?class_id=$class_id");
+            exit();
         } else {
-            $message = "Failed to register student. ID might already exist.";
-            $student_code = '';
+            $message = "Error adding student. Maybe this ID already exists.";
         }
 
         $stmt->close();
     } else {
-        $message = "Both Full Name and ID Number are required!";
+        $message = "All fields are required!";
     }
 }
 ?>
+
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Register Student</title>
+    <title>Add Student - <?php echo htmlspecialchars($class_name); ?></title>
     <style>
         body{
-            font-family: Arial, sans-serif;
-            background:#f0f2f5;
+            font-family: Arial;
+            background: lightskyblue;
             display:flex;
             justify-content:center;
             align-items:center;
@@ -61,45 +71,46 @@ if (isset($_POST['register_student'])) {
             border-radius:10px;
             box-shadow:0 5px 15px rgba(0,0,0,0.2);
             width:400px;
+            text-align:center;
         }
-        h2{text-align:center;}
-        input, button{
+        h2{
+            margin-bottom:10px;
+        }
+        .class-name{
+            color:#007BFF;
+            margin-bottom:20px;
+            font-weight:bold;
+        }
+        input{
             width:100%;
             padding:10px;
             margin:10px 0;
             border-radius:5px;
             border:1px solid #ccc;
-            font-size:16px;
         }
         button{
+            width:100%;
+            padding:10px;
             background:#007BFF;
             color:white;
             border:none;
+            border-radius:5px;
             cursor:pointer;
+            font-size:16px;
         }
         button:hover{
             background:#0056b3;
         }
         .message{
-            text-align:center;
+            margin-bottom:10px;
+            color:red;
             font-weight:bold;
-            margin-bottom:15px;
-        }
-        .success{ color:green; }
-        .error{ color:red; }
-        .student-code{
-            text-align:center;
-            font-size:18px;
-            font-weight:bold;
-            margin-top:10px;
-            color:#333;
         }
         .back{
             display:block;
             margin-top:20px;
-            text-align:center;
-            text-decoration:none;
             color:#007BFF;
+            text-decoration:none;
             font-weight:bold;
         }
         .back:hover{
@@ -110,27 +121,20 @@ if (isset($_POST['register_student'])) {
 <body>
 
 <div class="container">
-    <h2>Register Student</h2>
+    <h2>Add Student</h2>
+    <div class="class-name"><?php echo htmlspecialchars($class_name); ?></div>
 
     <?php if($message): ?>
-        <p class="message <?php echo strpos($message,'successfully') !== false ? 'success':'error'; ?>">
-            <?php echo $message; ?>
-        </p>
-    <?php endif; ?>
-
-    <?php if($student_code): ?>
-        <div class="student-code">
-            Generated Student Code: <strong><?php echo $student_code; ?></strong>
-        </div>
+        <p class="message"><?php echo $message; ?></p>
     <?php endif; ?>
 
     <form method="POST">
         <input type="text" name="student_name" placeholder="Full Name" required>
         <input type="text" name="id_number" placeholder="ID Number" required>
-        <button type="submit" name="register_student">Register Student</button>
+        <button type="submit" name="register_student">Add Student</button>
     </form>
 
-    <a href="instructor_dashboard.php" class="back">← Back to Dashboard</a>
+    <a class="back" href="view_students.php?class_id=<?php echo $class_id; ?>">← Back to Students</a>
 </div>
 
 </body>
