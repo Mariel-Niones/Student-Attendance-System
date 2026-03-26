@@ -2,30 +2,38 @@
 session_start();
 include '../db.php';
 
-// امنیت check
+// Security
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'instructor') {
     header("Location: ../index.php?action=login");
     exit();
 }
 
-// =======================
-// FETCH STUDENTS WITH CLASS
-// =======================
-$query = "
+// Get class_id from URL
+if (!isset($_GET['class_id'])) {
+    die("Class not specified.");
+}
+
+$class_id = intval($_GET['class_id']);
+
+// Fetch students of specific class
+$stmt = $conn->prepare("
     SELECT c.class_name, s.student_name, s.id_number, s.student_code
     FROM students s
     JOIN classes c ON s.class_id = c.id
-    ORDER BY c.class_name, s.student_name
-";
+    WHERE c.id = ?
+    ORDER BY s.student_name
+");
+$stmt->bind_param("i", $class_id);
+$stmt->execute();
+$result = $stmt->get_result();
 
-$result = $conn->query($query);
-
-// Organize students by class
-$classes = [];
+$students = [];
+$class_name = "";
 
 if ($result && $result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
-        $classes[$row['class_name']][] = $row;
+        $students[] = $row;
+        $class_name = $row['class_name'];
     }
 }
 ?>
@@ -70,7 +78,7 @@ if ($result && $result->num_rows > 0) {
         }
         th{
             background:#007BFF;
-            color:lightskyblue;
+            color:white;
         }
         .back{
             display:block;
@@ -87,30 +95,24 @@ if ($result && $result->num_rows > 0) {
 <div class="container">
     <h2>Students per Class</h2>
 
-    <?php if (!empty($classes)): ?>
+    <h3><?php echo htmlspecialchars($class_name); ?></h3>
 
-        <?php foreach ($classes as $class_name => $students): ?>
-            
-            <h3><?php echo htmlspecialchars($class_name); ?></h3>
+    <?php if (!empty($students)): ?>
+        <table>
+            <tr>
+                <th>Full Name</th>
+                <th>ID Number</th>
+                <th>Student Code</th>
+            </tr>
 
-            <table>
+            <?php foreach ($students as $student): ?>
                 <tr>
-                    <th>Full Name</th>
-                    <th>ID Number</th>
-                    <th>Student Code</th>
+                    <td><?php echo htmlspecialchars($student['student_name']); ?></td>
+                    <td><?php echo htmlspecialchars($student['id_number']); ?></td>
+                    <td><?php echo htmlspecialchars($student['student_code']); ?></td>
                 </tr>
-
-                <?php foreach ($students as $student): ?>
-                    <tr>
-                        <td><?php echo htmlspecialchars($student['student_name']); ?></td>
-                        <td><?php echo htmlspecialchars($student['id_number']); ?></td>
-                        <td><?php echo htmlspecialchars($student['student_code']); ?></td>
-                    </tr>
-                <?php endforeach; ?>
-            </table>
-
-        <?php endforeach; ?>
-
+            <?php endforeach; ?>
+        </table>
     <?php else: ?>
         <p style="text-align:center;">No students found.</p>
     <?php endif; ?>
