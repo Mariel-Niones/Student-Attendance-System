@@ -40,40 +40,70 @@ $stmt->close();
     <title>Instructor Dashboard</title>
     <style>
         body{
-            font-family: Arial;
+            font-family: Arial, sans-serif;
             background-color: lightskyblue;
             padding: 20px;
         }
         .container{
-            max-width: 900px;
+            max-width: 1000px;
             margin: auto;
             background: white;
-            padding: 20px;
+            padding: 30px;
             border-radius: 10px;
-            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
         }
-        h2{text-align: center;}
+        h2{
+            text-align: center;
+            margin-bottom: 10px;
+        }
         table{
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
         }
         th, td{
-            padding: 10px;
+            padding: 12px;
             border: 1px solid #ccc;
             text-align: center;
         }
         a.button{
-            padding: 5px 10px;
-            margin: 2px;
+            padding: 6px 12px;
+            margin: 2px 2px;
             background: #007BFF;
             color: white;
             text-decoration: none;
             border-radius: 5px;
             display: inline-block;
+            font-size: 14px;
         }
         a.button:hover{
             background: #0056b3;
+        }
+        .view-btn{
+            padding: 6px 12px;
+            margin: 2px 2px;
+            background: #28a745; /* green */
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            display: inline-block;
+            font-size: 14px;
+        }
+        .view-btn:hover{
+            background: #1e7e34;
+        }
+        .attendance-btn{
+            padding: 6px 12px;
+            margin: 2px 2px;
+            background: #ffc107; /* yellow */
+            color: black;
+            text-decoration: none;
+            border-radius: 5px;
+            display: inline-block;
+            font-size: 14px;
+        }
+        .attendance-btn:hover{
+            background: #e0a800;
         }
         .error{color:red; text-align:center;}
         .success{color:green; text-align:center;}
@@ -81,20 +111,8 @@ $stmt->close();
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-bottom: 15px;
         }
-        .view-btn{
-    padding: 5px 10px;
-    margin: 2px;
-    background: #28a745; /* light green */
-    color: white;
-    text-decoration: none;
-    border-radius: 5px;
-    display: inline-block;
-}
-
-.view-btn:hover{
-    background: #1e7e34; /* darker green on hover */
-}
     </style>
 </head>
 <body>
@@ -127,6 +145,7 @@ $stmt->close();
                             <a class="button" href="remove_student.php?class_id=<?php echo $class['id']; ?>">Remove Student</a>
                             <a class="button" href="edit_class.php?class_id=<?php echo $class['id']; ?>">Edit Class</a>
                             <a class="button" href="?delete_class=<?php echo $class['id']; ?>" onclick="return confirm('Are you sure you want to delete this class?')">Delete Class</a>
+                            <a class="attendance-btn" href="student_login.php?class_id=<?php echo $class['id']; ?>">Get Attendance</a>
                             <a class="view-btn" href="view_students.php?class_id=<?php echo $class['id']; ?>">View Students</a>
                         </td>
                     </tr>

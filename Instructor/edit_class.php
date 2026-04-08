@@ -44,7 +44,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
 
         if($stmt->execute()){
             $success = "Class updated successfully!";
-            $class['class_name'] = $new_name; // update displayed value
+            $class['class_name'] = $new_name;
         } else {
             $error = "Failed to update class.";
         }
@@ -93,11 +93,20 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
         .btn:hover{
             background: #0056b3;
         }
+        .back-container{
+            text-align: center;
+            margin-top: 20px;
+        }
         .back{
             display: inline-block;
-            margin-bottom: 10px;
+            padding: 10px 15px;
             text-decoration: none;
-            color: #007BFF;
+            background: #007BFF;
+            color: white;
+            border-radius: 5px;
+        }
+        .back:hover{
+            background: #0056b3;
         }
         .error{color:red; text-align:center;}
         .success{color:green; text-align:center;}
@@ -105,7 +114,6 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
 </head>
 <body>
 <div class="container">
-    
 
     <h2>Edit Class</h2>
 
@@ -119,9 +127,15 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
         <input type="text" name="class_name" value="<?php echo htmlspecialchars($class['class_name']); ?>" required>
 
         <button type="submit" class="btn">Update Class</button>
-
-    <a class="back" href="instructor_dashboard.php?class_id=<?php echo $class_id; ?>">← Back to Dashboard</a>
     </form>
+
+    <!-- Centered Back Button at Bottom -->
+    <div class="back-container">
+        <a class="back" href="instructor_dashboard.php?class_id=<?php echo $class_id; ?>">
+            ← Back to Dashboard
+        </a>
+    </div>
+
 </div>
 </body>
 </html>

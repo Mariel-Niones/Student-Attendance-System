@@ -82,12 +82,15 @@ if ($result && $result->num_rows > 0) {
         }
         .back{
             display:block;
-            margin-top:20px;
+            margin-top:30px;
             text-align:center;
             text-decoration:none;
             font-weight:bold;
             color:#007BFF;
         }
+        .back:hover{
+            background:#0056b3;
+        } 
     </style>
 </head>
 <body>
@@ -117,7 +120,10 @@ if ($result && $result->num_rows > 0) {
         <p style="text-align:center;">No students found.</p>
     <?php endif; ?>
 
-    <a href="instructor_dashboard.php" class="back">← Back to Dashboard</a>
+    <div class="back-container">
+        <a class="back" href="instructor_dashboard.php?class_id=<?php echo $class_id; ?>">
+            ← Back to Dashboard
+        </a>
 </div>
 
 </body>

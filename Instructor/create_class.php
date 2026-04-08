@@ -1,48 +1,35 @@
 <?php
 session_start();
-require(__DIR__ . '/../db.php'); // go up to root for db.php
+require(__DIR__ . '/../db.php');
 
-// Check if user is logged in and is an instructor
-if(!isset($_SESSION['full_name']) || $_SESSION['role'] !== 'instructor'){
+// Restrict to instructors
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'instructor') {
     header("Location: ../index.php?action=login");
     exit();
 }
 
+$instructor_name = $_SESSION['full_name'];
 $error = '';
 $success = '';
-$instructor_name = $_SESSION['full_name'];
 
-if(isset($_POST['create_class'])){
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $class_name = trim($_POST['class_name']);
 
-    if(!empty($class_name)){
-        // Check if class already exists for this instructor
-        $check_stmt = $conn->prepare("SELECT * FROM classes WHERE class_name=? AND instructor_name=?");
-        $check_stmt->bind_param("ss", $class_name, $instructor_name);
-        $check_stmt->execute();
-        $check_result = $check_stmt->get_result();
+    if (empty($class_name)) {
+        $error = "Class name cannot be empty.";
+    } else {
+        // Insert class
+        $stmt = $conn->prepare("INSERT INTO classes (class_name, instructor_name) VALUES (?, ?)");
+        $stmt->bind_param("ss", $class_name, $instructor_name);
 
-        if($check_result->num_rows > 0){
-            $error = "You already have a class with this name.";
+        if ($stmt->execute()) {
+            $success = "Class created successfully!";
         } else {
-            // Insert new class
-            $stmt = $conn->prepare("INSERT INTO classes (class_name, instructor_name) VALUES (?, ?)");
-            $stmt->bind_param("ss", $class_name, $instructor_name);
-
-            if($stmt->execute()){
-                // Success → redirect to dashboard
-                header("Location: instructor_dashboard.php");
-                exit();
-            } else {
-                $error = "Failed to create class.";
-            }
-
-            $stmt->close();
+            $error = "Failed to create class.";
         }
 
-        $check_stmt->close();
-    } else {
-        $error = "Please enter a class name.";
+        $stmt->close();
     }
 }
 ?>
@@ -50,33 +37,107 @@ if(isset($_POST['create_class'])){
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Create Class - Instructor Dashboard</title>
+    <title>Create Class</title>
     <style>
-        body{ font-family: Arial; background-color: lightblue; display:flex; justify-content:center; align-items:center; height:100vh; }
-        .container{ background:white; padding:30px; border-radius:10px; width:400px; box-shadow:0 0 15px rgba(0,0,0,0.2); }
-        input, button{ width:100%; padding:10px; margin:10px 0; border-radius:5px; border:1px solid #ccc; font-size:16px; }
-        button{ background:#007BFF; color:white; border:none; cursor:pointer; }
-        button:hover{ background:#0056b3; }
-        .error{color:red; text-align:center;}
-        .success{color:green; text-align:center;}
-        h2{text-align:center;}
+        body{
+            font-family: Arial;
+            background: lightskyblue;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            height:100vh;
+        }
+        .container{
+            background:white;
+            padding:30px;
+            border-radius:10px;
+            box-shadow:0 5px 15px rgba(0,0,0,0.2);
+            width:400px;
+            text-align:center;
+        }
+        h2{
+            margin-bottom:20px;
+        }
+        input{
+            width:100%;
+            padding:10px;
+            margin-bottom:15px;
+            border-radius:5px;
+            border:1px solid #ccc;
+        }
+        .btn{
+            width:100%;
+            padding:10px;
+            background:#007BFF;
+            color:white;
+            border:none;
+            border-radius:5px;
+            cursor:pointer;
+        }
+        .btn:hover{
+            background:#0056b3;
+        }
+        .message{
+            margin-bottom:10px;
+            font-weight:bold;
+            color:green;
+        }
+        .error{
+            margin-bottom:10px;
+            color:red;
+            font-weight:bold;
+        }
+        .back-container{
+            margin-top:20px;
+        }
+        .back-btn{
+            width:100%;
+            padding:10px;
+            background:#28a745;
+            color:white;
+            border:none;
+            border-radius:5px;
+            cursor:pointer;
+        }
+        .back-btn:hover{
+            background:#1e7e34;
+        }
     </style>
+
+    <!-- Auto redirect after success -->
+    <?php if ($success): ?>
+        <script>
+            setTimeout(function(){
+                window.location.href = "instructor_dashboard.php";
+            }, 1500);
+        </script>
+    <?php endif; ?>
 </head>
 <body>
-    <div class="container">
-        <h2>Create New Class</h2>
 
-        <?php
-            if(!empty($error)) echo "<p class='error'>$error</p>";
-            if(!empty($success)) echo "<p class='success'>$success</p>";
-        ?>
+<div class="container">
+    <h2>Create New Class</h2>
 
-        <form method="POST">
-            <input type="text" name="class_name" placeholder="Class Name" required>
-            <button type="submit" name="create_class">Create Class</button>
-        </form>
+    <?php if ($error): ?>
+        <div class="error"><?php echo $error; ?></div>
+    <?php endif; ?>
 
-        <p style="text-align:center;"><a href="instructor_dashboard.php">Go to Dashboard</a></p>
+    <?php if ($success): ?>
+        <div class="message"><?php echo $success; ?></div>
+    <?php endif; ?>
+
+    <form method="POST">
+        <input type="text" name="class_name" placeholder="Enter class name" required>
+        <button type="submit" class="btn">Create Class</button>
+    </form>
+
+    <!-- Back Button -->
+    <div class="back-container">
+        <button class="back-btn" onclick="window.location.href='instructor_dashboard.php'">
+            ← Back to Dashboard
+        </button>
     </div>
+</div>
+
 </body>
 </html>

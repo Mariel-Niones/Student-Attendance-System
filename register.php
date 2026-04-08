@@ -34,6 +34,7 @@ $barcode = "STU" . time() . rand(100,999);
 <head>
 <title>Register - Student Attendance System</title>
 
+    <title>Student Attendance System</title>
 <style>
 body{
     font-family: Arial, sans-serif;

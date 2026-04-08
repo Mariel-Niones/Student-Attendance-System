@@ -96,11 +96,20 @@ $stmt->close();
         .btn:hover{
             background: darkred;
         }
+        .back-container{
+            text-align: center;
+            margin-top: 20px;
+        }
         .back{
             display: inline-block;
-            margin-bottom: 10px;
+            padding: 10px 15px;
             text-decoration: none;
-            color: #007BFF;
+            color: white;
+            background: #007BFF;
+            border-radius: 5px;
+        }
+        .back:hover{
+            background: #0056b3;
         }
         .error{color:red; text-align:center;}
         .success{color:green; text-align:center;}
@@ -137,12 +146,16 @@ $stmt->close();
                     </td>
                 </tr>
             <?php endforeach; ?>
-        </div>
-    <?php endif; ?>
-    <a class="back" href="instructor_dashboard.php?class_id=<?php echo $class_id; ?>">← Back to Dashboard</a>
-</div>
-
+        <?php endif; ?>
     </table>
+
+    <!-- Centered Back Button -->
+    <div class="back-container">
+        <a class="back" href="instructor_dashboard.php?class_id=<?php echo $class_id; ?>">
+            ← Back to Dashboard
+        </a>
+    </div>
+
 </div>
 </body>
 </html>

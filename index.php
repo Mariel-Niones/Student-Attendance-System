@@ -162,6 +162,7 @@ if(isset($_SESSION['success_message'])){
 
 <?php if($action=="register"){ ?>
 <div class="form-box">
+<h2>Student Attendance System</h2>
 <h2>Register</h2>
 <form method="POST">
 <input type="text" name="full_name" placeholder="Full Name" required>

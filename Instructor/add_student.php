@@ -26,7 +26,7 @@ $class_name = $class['class_name'];
 
 $message = '';
 $barcode_image = '';
-$student_registered = false; // flag to control form visibility
+$student_registered = false;
 
 // REGISTER STUDENT
 if (isset($_POST['register_student'])) {
@@ -41,10 +41,9 @@ if (isset($_POST['register_student'])) {
         $stmt->bind_param("sssi", $student_name, $id_number, $student_code, $class_id);
 
         if ($stmt->execute()) {
-            // Generate barcode PNG in memory using GD
             $barcode_image = generateBarcode($id_number);
             $message = "Student registered successfully!";
-            $student_registered = true; // hide the form
+            $student_registered = true;
         } else {
             $message = "Error adding student. Maybe this ID already exists.";
         }
@@ -55,9 +54,7 @@ if (isset($_POST['register_student'])) {
     }
 }
 
-// -------------------------
-// Function to generate barcode
-// -------------------------
+// BARCODE FUNCTION
 function generateBarcode($code) {
     $barWidth = 2;
     $height = 60;
@@ -76,7 +73,7 @@ function generateBarcode($code) {
         'U'=>"110010101011",'V'=>"100110101011",'W'=>"110011010101",
         'X'=>"100101101011",'Y'=>"110010110101",'Z'=>"100110110101",
         '-'=>"100101011011",'.'=>"110010101101",' '=>"100110101101",
-        '*'=>"100101101101" // start/stop
+        '*'=>"100101101101"
     ];
 
     $text = "*" . strtoupper($code) . "*";
@@ -101,10 +98,9 @@ function generateBarcode($code) {
             $x += $barWidth;
         }
 
-        $x += $barWidth; // space between characters
+        $x += $barWidth;
     }
 
-    // Capture the PNG output as base64 to display inline
     ob_start();
     imagepng($image);
     $png_data = ob_get_clean();
@@ -135,9 +131,6 @@ function generateBarcode($code) {
             width:400px;
             text-align:center;
         }
-        h2{
-            margin-bottom:10px;
-        }
         .class-name{
             color:#007BFF;
             margin-bottom:20px;
@@ -158,7 +151,6 @@ function generateBarcode($code) {
             border:none;
             border-radius:5px;
             cursor:pointer;
-            font-size:16px;
         }
         button:hover{
             background:#0056b3;
@@ -168,18 +160,23 @@ function generateBarcode($code) {
             color:green;
             font-weight:bold;
         }
-        .back{
-            display:block;
-            margin-top:20px;
-            text-decoration:none;
-            color:#007BFF;
-            font-weight:bold;
-        }
-        .back:hover{
-            text-decoration:underline;
-        }
         .barcode{
             margin-top:20px;
+        }
+        .back-container{
+            margin-top:30px;
+            text-align:center;
+        }
+        .back{
+            display:inline-block;
+            padding:10px 15px;
+            background:#007BFF;
+            color:white;
+            text-decoration:none;
+            border-radius:5px;
+        }
+        .back:hover{
+            background:#0056b3;
         }
     </style>
 </head>
@@ -207,7 +204,13 @@ function generateBarcode($code) {
         </div>
     <?php endif; ?>
 
-    <a class="back" href="instructor_dashboard.php?class_id=<?php echo $class_id; ?>">← Back to Dashboard</a>
+    <!-- Bottom Back Button -->
+    <div class="back-container">
+        <a class="back" href="instructor_dashboard.php?class_id=<?php echo $class_id; ?>">
+            ← Back to Dashboard
+        </a>
+    </div>
+
 </div>
 
 </body>
