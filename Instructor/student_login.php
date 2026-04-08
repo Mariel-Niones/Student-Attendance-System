@@ -1,115 +1,134 @@
 <?php
-// student_login.php
+session_start();
+include '../db.php'; // DB connection
 
-// Database connection (update with your credentials)
-$host = "localhost";
-$user = "root";
-$password = "";
-$dbname = "attendance_system";
-
-$conn = new mysqli($host, $user, $password, $dbname);
-
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
+// Only allow instructors
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'instructor') {
+    header("Location: ../index.php?action=login");
+    exit();
 }
 
-$message = "";
+// Check class_id
+if (!isset($_GET['class_id'])) die("Class not specified.");
+$class_id = intval($_GET['class_id']);
 
-// Handle AJAX request from scanner
-if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($_POST['barcode'])) {
+// Handle AJAX POST for barcode
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['barcode'])) {
     $barcode = $conn->real_escape_string($_POST['barcode']);
 
-    // Check if student exists
-    $sql = "SELECT * FROM students WHERE barcode = '$barcode'";
-    $result = $conn->query($sql);
+    // Find student in class
+    $stmt = $conn->prepare("SELECT * FROM students WHERE barcode=? AND class_id=?");
+    $stmt->bind_param("si", $barcode, $class_id);
+    $stmt->execute();
+    $student = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
 
-    if ($result->num_rows > 0) {
-        $student = $result->fetch_assoc();
+    if ($student) {
         $student_id = $student['id'];
         $date = date("Y-m-d");
 
-        // Prevent duplicate attendance
-        $check = "SELECT * FROM attendance WHERE student_id='$student_id' AND date='$date'";
-        $checkResult = $conn->query($check);
+        // Check duplicate attendance
+        $check = $conn->prepare("SELECT * FROM attendance WHERE student_id=? AND date=?");
+        $check->bind_param("is", $student_id, $date);
+        $check->execute();
+        $checkResult = $check->get_result();
 
-        if ($checkResult->num_rows == 0) {
-            $insert = "INSERT INTO attendance (student_id, date, time) VALUES ('$student_id', '$date', NOW())";
-            $conn->query($insert);
-            $message = "✅ Attendance marked for " . htmlspecialchars($student['name']);
+        if ($checkResult->num_rows === 0) {
+            $insert = $conn->prepare("INSERT INTO attendance (student_id, class_id, date, time) VALUES (?, ?, ?, NOW())");
+            $insert->bind_param("iis", $student_id, $class_id, $date);
+            $insert->execute();
+            $message = "✅ Attendance marked for " . htmlspecialchars($student['student_name']);
+            $insert->close();
         } else {
-            $message = "⚠️ Attendance already marked today for " . htmlspecialchars($student['name']);
+            $message = "⚠️ Attendance already marked today for " . htmlspecialchars($student['student_name']);
         }
+        $check->close();
     } else {
         $message = "❌ Invalid barcode!";
     }
 
-    // Return JSON response
     echo json_encode(['message' => $message]);
     exit;
 }
+
+// Get class name
+$stmt = $conn->prepare("SELECT class_name FROM classes WHERE id=?");
+$stmt->bind_param("i", $class_id);
+$stmt->execute();
+$stmt->bind_result($class_name);
+$stmt->fetch();
+$stmt->close();
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Student Attendance Scanner</title>
-    <!-- Include Html5Qrcode library from CDN -->
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; margin-top: 30px; }
-        #scanner { width: 500px; margin: auto; }
-        .message { font-size: 20px; margin-top: 20px; color: green; }
-    </style>
+<meta charset="UTF-8">
+<title>Student Attendance Scanner</title>
+<script src="js/html5-qrcode.min.js"></script>
+<style>
+body { font-family: Arial; text-align: center; padding: 30px; background: lightskyblue; }
+#scanner { width: 400px; height: 300px; margin: auto; border: 2px solid #ccc; border-radius: 8px; }
+#message { font-size: 18px; margin-top: 20px; min-height: 30px; color: green; }
+h1, h2 { margin-bottom: 15px; }
+.back-btn { display: inline-block; margin-top: 20px; padding: 10px 20px; background: #007BFF; color: white; text-decoration: none; border-radius: 5px; }
+.back-btn:hover { background: #0056b3; }
+</style>
 </head>
 <body>
-    <h1>Student Attendance Scanner</h1>
-    <div id="scanner"></div>
-    <div class="message" id="message"></div>
 
-    <script>
-        const messageEl = document.getElementById('message');
+<h1>Attendance Scanner</h1>
+<h2><?php echo htmlspecialchars($class_name); ?></h2>
 
-        // Function to send scanned barcode to PHP via AJAX
-        function markAttendance(barcode) {
-            fetch('student_login.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'barcode=' + encodeURIComponent(barcode)
-            })
-            .then(response => response.json())
-            .then(data => {
-                messageEl.innerText = data.message;
-            });
-        }
+<div id="scanner">Loading camera...</div>
+<div id="message"></div>
+<a class="back-btn" href="instructor_dashboard.php">← Back to Dashboard</a>
 
-        // Called when scanner successfully reads a barcode
-        function onScanSuccess(decodedText, decodedResult) {
-            markAttendance(decodedText);
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const scannerEl = document.getElementById("scanner");
+    const messageEl = document.getElementById("message");
 
-            // Optional: pause scanning for 3 seconds to prevent duplicate scans
-            html5QrcodeScanner.clear().then(() => {
-                setTimeout(() => {
-                    startScanner();
-                }, 3000);
-            });
-        }
+    function markAttendance(barcode) {
+        fetch('student_login.php?class_id=<?php echo $class_id; ?>', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: 'barcode=' + encodeURIComponent(barcode)
+        })
+        .then(r => r.json())
+        .then(data => { messageEl.innerText = data.message; });
+    }
 
-        let html5QrcodeScanner;
+    const html5QrCode = new Html5Qrcode("scanner");
 
-        function startScanner() {
-            html5QrcodeScanner = new Html5Qrcode("scanner");
-            html5QrcodeScanner.start(
-                { facingMode: "environment" },  // Use back camera
-                { fps: 10, qrbox: 250 },       // scanning settings
-                onScanSuccess
+    // Explicitly get camera list and start the first one
+    Html5Qrcode.getCameras().then(cameras => {
+        if (cameras && cameras.length) {
+            const cameraId = cameras[0].id;
+            html5QrCode.start(
+                { deviceId: { exact: cameraId } },
+                { fps: 10, qrbox: 250 },
+                decodedText => {
+                    markAttendance(decodedText);
+                    html5QrCode.pause(true);
+                    setTimeout(() => html5QrCode.resume(), 2000);
+                },
+                errorMessage => {
+                    // ignore scan errors
+                }
             ).catch(err => {
-                console.error("Camera start failed: ", err);
-                messageEl.innerText = "❌ Cannot access camera. Please allow camera access.";
+                scannerEl.innerText = "❌ Cannot start camera: " + err;
+                console.error(err);
             });
+        } else {
+            scannerEl.innerText = "❌ No camera found";
         }
+    }).catch(err => {
+        scannerEl.innerText = "❌ Camera access error: " + err;
+        console.error(err);
+    });
+});
+</script>
 
-        startScanner();
-    </script>
 </body>
 </html>
