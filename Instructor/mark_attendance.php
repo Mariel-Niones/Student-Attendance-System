@@ -1,68 +1,82 @@
 <?php
-session_start();
-require(__DIR__ . '/../db.php'); // adjust path if needed
+require(__DIR__ . '/../db.php');
 
-// Only allow access if class_id and barcode are provided
-if(!isset($_POST['class_id'], $_POST['barcode'])){
-    http_response_code(400);
-    echo json_encode(['status'=>'error','message'=>'Missing class or barcode']);
+header('Content-Type: application/json');
+
+if (!isset($_POST['student_id'], $_POST['class_id'])) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Missing data'
+    ]);
     exit();
 }
 
+$student_code = trim($_POST['student_id']);
 $class_id = intval($_POST['class_id']);
-$barcode = trim($_POST['barcode']);
 
-// Check if student exists for this class
-$stmt = $conn->prepare("SELECT id, student_name FROM students WHERE student_code = ? AND class_id = ?");
-$stmt->bind_param("si", $barcode, $class_id);
+// FIND STUDENT
+$stmt = $conn->prepare("
+    SELECT id, student_name 
+    FROM students 
+    WHERE student_code = ? AND class_id = ?
+");
+$stmt->bind_param("si", $student_code, $class_id);
 $stmt->execute();
 $result = $stmt->get_result();
 
-if($result->num_rows === 0){
-    echo json_encode(['status'=>'error','message'=>'Student not found in this class']);
-    $stmt->close();
+if ($result->num_rows === 0) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Student not found'
+    ]);
     exit();
 }
 
 $student = $result->fetch_assoc();
 $student_id = $student['id'];
 
-// Check if attendance already marked for today
+// CHECK DUPLICATE TODAY
 $today = date('Y-m-d');
-$stmt->close();
-$stmt = $conn->prepare("SELECT id FROM attendance WHERE student_id = ? AND class_id = ? AND DATE(date_time) = ?");
+
+$stmt = $conn->prepare("
+    SELECT id FROM attendance 
+    WHERE student_id = ? 
+    AND class_id = ? 
+    AND DATE(date_time) = ?
+");
 $stmt->bind_param("iis", $student_id, $class_id, $today);
 $stmt->execute();
 $result = $stmt->get_result();
 
-if($result->num_rows > 0){
-    // Already marked today
-    echo json_encode(['status'=>'error','message'=>'Attendance already marked for today']);
-    $stmt->close();
+if ($result->num_rows > 0) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Already recorded today',
+        'name' => $student['student_name']
+    ]);
     exit();
 }
-$stmt->close();
 
-// Determine attendance status automatically
-// For simplicity, mark all scanned students as "Present"
-// You can modify this to calculate Late/Absent based on class start time
+// INSERT ATTENDANCE
 $status = "Present";
 $date_time = date('Y-m-d H:i:s');
 
-$stmt = $conn->prepare("INSERT INTO attendance (student_id, class_id, status, date_time) VALUES (?, ?, ?, ?)");
+$stmt = $conn->prepare("
+    INSERT INTO attendance (student_id, class_id, status, date_time)
+    VALUES (?, ?, ?, ?)
+");
 $stmt->bind_param("iiss", $student_id, $class_id, $status, $date_time);
 
-if($stmt->execute()){
+if ($stmt->execute()) {
     echo json_encode([
-        'status'=>'success',
-        'message'=>"Attendance marked: $status",
-        'student_name'=>$student['student_name'],
-        'status_marked'=>$status
+        'success' => true,
+        'message' => 'Attendance recorded',
+        'name' => $student['student_name']
     ]);
-}else{
-    echo json_encode(['status'=>'error','message'=>'Failed to mark attendance']);
+} else {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Database error'
+    ]);
 }
-
-$stmt->close();
-$conn->close();
 ?>
